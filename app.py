@@ -7,8 +7,7 @@ import time
 import random
 from openpyxl.styles import PatternFill
 
-# --- DAFTAR BAHASA LENGKAP (ISO 639-1 yang umum didukung Google Translate) ---
-# Daftar ini mencakup lebih dari 190 bahasa yang didukung oleh Google Translate
+# ========== DAFTAR BAHASA LENGKAP ==========
 LANGUAGES = {
     "Abkhaz": "ab", "Acehnese": "ace", "Acholi": "ach", "Afar": "aa", "Afrikaans": "af",
     "Albanian": "sq", "Alur": "alz", "Amharic": "am", "Arabic": "ar", "Armenian": "hy",
@@ -73,11 +72,9 @@ LANGUAGES = {
     "Xhosa": "xh",
     "Yakut": "sah", "Yiddish": "yi", "Yoruba": "yo", "Yucatec Maya": "yua",
     "Zapotec": "zap", "Zulu": "zu",
-    # Opsi untuk kode manual
     "--- Lainnya (ketik kode manual) ---": "other"
 }
 
-# --- KONFIGURASI USER-AGENT ---
 USER_AGENTS = [
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36",
     "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/118.0.0.0 Safari/537.36",
@@ -85,178 +82,174 @@ USER_AGENTS = [
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/119.0"
 ]
 
-# --- FUNGSI INTI TRANSLATE ---
-def translate_core(text, target, source='id'):
-    """Request ke Google API gtx."""
+# ========== FUNGSI TRANSLATE PER PROVIDER ==========
+def translate_google_gtx(text, target, source='id'):
+    headers = {"User-Agent": random.choice(USER_AGENTS)}
+    url = "https://translate.googleapis.com/translate_a/single"
+    params = {"client": "gtx", "sl": source, "tl": target, "dt": "t", "q": text.strip()}
+    try:
+        resp = requests.get(url, params=params, headers=headers, timeout=10)
+        if resp.status_code == 200:
+            parts = [part[0] for part in resp.json()[0] if part[0]]
+            return "".join(parts)
+        elif resp.status_code == 429:
+            return "ERR_LIMIT"
+        else:
+            return "ERR_UNSUPPORTED"
+    except:
+        return None
+
+def translate_deep_translator(text, target, source='id'):
+    """Fallback via library deep-translator (Google Web)."""
+    try:
+        from deep_translator import GoogleTranslator
+        # deep-translator bisa menerima 'auto' untuk source
+        translated = GoogleTranslator(source='auto', target=target).translate(text.strip())
+        return translated
+    except Exception:
+        return None
+
+# ========== FUNGSI UTAMA DENGAN FALLBACK ==========
+def translate_with_fallback(text, target, source='id'):
+    """Coba provider sesuai urutan di FALLBACK_ORDER (global dari sidebar)."""
     if not text or str(text).strip().lower() in ["nan", "none", ""]:
         return ""
-    
-    headers = {"User-Agent": random.choice(USER_AGENTS)}
-    base_url = "https://translate.googleapis.com/translate_a/single"
-    
-    params = {
-        "client": "gtx",
-        "sl": source,
-        "tl": target,
-        "dt": "t",
-        "q": str(text).strip()
-    }
-    
+
+    text = str(text).strip()
+    # Jika teks panjang, pecah dulu (fallback hanya untuk potongan)
+    if len(text) > 4500:
+        chunks = [text[i:i+4000] for i in range(0, len(text), 4000)]
+        results = []
+        for chunk in chunks:
+            res = translate_with_fallback(chunk, target, source)
+            if res and "ERR" not in res:
+                results.append(res)
+            elif res == "ERR_LIMIT":
+                return "ERR_LIMIT"
+            elif res == "ERR_UNSUPPORTED":
+                return "ERR_UNSUPPORTED"
+            else:
+                return None
+        return " ".join(results)
+
+    for provider in FALLBACK_ORDER:
+        if provider == "google_gtx":
+            result = translate_google_gtx(text, target, source)
+        elif provider == "deep_translator":
+            result = translate_deep_translator(text, target, source)
+        elif provider == "google_cloud":
+            # Hanya bisa dipakai jika kunci diisi
+            if st.session_state.get("gc_key"):
+                result = translate_google_cloud_api(text, target, source, st.session_state.gc_key)
+            else:
+                continue
+        else:
+            continue
+
+        if result is None or "ERR" in str(result):
+            continue
+        return result
+    return "ERR_UNSUPPORTED"
+
+# Placeholder cloud function (tidak berubah, hanya jika ada key)
+def translate_google_cloud_api(text, target, source, api_key):
+    url = "https://translation.googleapis.com/language/translate/v2"
+    params = {"q": text, "target": target, "source": source, "format": "text", "key": api_key}
     try:
-        response = requests.get(base_url, params=params, headers=headers, timeout=12)
-        if response.status_code == 200:
-            result_json = response.json()
-            translated_parts = [part[0] for part in result_json[0] if part[0]]
-            return "".join(translated_parts)
-        elif response.status_code == 429:
+        resp = requests.get(url, params=params, timeout=10)
+        if resp.status_code == 200:
+            return resp.json()["data"]["translations"][0]["translatedText"]
+        elif resp.status_code == 403:
             return "ERR_LIMIT"
         else:
-            return "ERR_UNSUPPORTED"  # kemungkinan kode bahasa tidak didukung
-    except Exception:
-        pass
-    return None
-
-def translate_smart(text, target):
-    """Pecah teks panjang >4500 karakter jika perlu."""
-    text_str = str(text).strip()
-    
-    if len(text_str) <= 4500:
-        return translate_core(text_str, target)
-    
-    chunks = [text_str[i:i+4000] for i in range(0, len(text_str), 4000)]
-    translated_results = []
-    
-    for c in chunks:
-        res = translate_core(c, target)
-        if res and res != "ERR_LIMIT" and res != "ERR_UNSUPPORTED":
-            translated_results.append(res)
-        elif res == "ERR_LIMIT":
-            return "ERR_LIMIT"
-        elif res == "ERR_UNSUPPORTED":
             return "ERR_UNSUPPORTED"
-        else:
-            return None
-    return " ".join(translated_results)
+    except:
+        return None
 
-# --- STREAMLIT UI ---
-st.set_page_config(page_title="Turbo Translator Pro v2", page_icon="⚡", layout="wide")
+# ========== STREAMLIT UI ==========
+st.set_page_config(page_title="Turbo Translator + Fallback", page_icon="⚡", layout="wide")
+st.title("⚡ Turbo Excel Translator + Fallback")
+st.markdown("... (deskripsi) ...")
 
-st.title("⚡ Turbo Excel Translator")
-st.markdown("Alat translasi otomatis untuk file Excel buatan fadhil ganteng kece keren hebat slebew. kalo gatau kodenya tanya gugel nulisnya gini 639-1 kode bahasa ..... bahasa mu ketiken. JANGAN LUPA DIKASIH LETI 1 BARIS DIATAS NYA")
-st.markdown("PAKAILAH 1 TAB AJA JANGAN MULTI TAB WOYYYY RUSAK HOST E, NDAK TAK HOST NO MANEH WM")
-
-# --- SIDEBAR ---
-st.sidebar.header("⚙️ Pengaturan")
-
-# Pilih bahasa dengan dropdown
-selected_lang = st.sidebar.selectbox(
-    "🌍 Bahasa Tujuan",
-    options=list(LANGUAGES.keys()),
-    index=list(LANGUAGES.values()).index("en")  # default English
-)
-
-# Jika memilih opsi "lainnya", tampilkan input manual
+# Sidebar
+st.sidebar.header("⚙️ Bahasa & Provider")
+selected_lang = st.sidebar.selectbox("🌍 Bahasa Tujuan", list(LANGUAGES.keys()),
+                                     index=list(LANGUAGES.values()).index("en"))
 if LANGUAGES[selected_lang] == "other":
-    target_lang = st.sidebar.text_input(
-        "✍️ Masukkan kode bahasa (contoh: nqo untuk N'Ko, eo untuk Esperanto)",
-        value="",
-        help="Ketik kode ISO 639-1/639-2 untuk bahasa yang tidak ada di daftar."
-    )
+    target_lang = st.sidebar.text_input("Kode bahasa manual", "")
 else:
     target_lang = LANGUAGES[selected_lang]
 
-max_workers = st.sidebar.slider("Kecepatan (Workers)", 1, 15, 5, help="Disarankan 5-10 agar aman.")
+max_workers = st.sidebar.slider("Workers", 1, 15, 5)
 
-st.sidebar.markdown("---")
-st.sidebar.info(
-    "📌 **Catatan Penting:**\n"
-    "• Jika hasil berwarna merah, artinya gagal (mungkin limit atau kode tidak didukung).\n"
-    "• Google Translate sekarang mendukung banyak bahasa, tapi jika kode tidak dikenali, akan muncul error.\n"
-    "• Jika ada kode tidak dikenal, tapi yakin sudah didukung, coba refresh halaman atau periksa daftar resmi Google.\n"
-    "• Untuk N'Ko, gunakan kode 'nqo' (tanpa tanda kutip)."
+st.sidebar.header("🔄 Fallback Order")
+fallback_options = st.sidebar.multiselect(
+    "Urutan provider yang dicoba:",
+    ["google_gtx", "deep_translator", "google_cloud"],
+    default=["google_gtx", "deep_translator"],
+    help="Akan dicoba berurutan. google_cloud hanya muncul jika Anda isi kunci di bawah."
 )
+# Simpan di global list agar dipakai di fungsi
+FALLBACK_ORDER = fallback_options
 
-# --- PROSES UTAMA ---
+# Input kunci API opsional (hanya untuk google_cloud)
+if "google_cloud" in FALLBACK_ORDER:
+    gc_key = st.sidebar.text_input("🔑 Kunci API Google Cloud (opsional)", type="password")
+    if gc_key:
+        st.session_state.gc_key = gc_key
+else:
+    st.session_state.gc_key = None
+
+st.sidebar.info("ℹ️ **deep_translator** adalah fallback gratis yang menggunakan endpoint Google Web.\n"
+                "Mungkin bisa menangani bahasa baru seperti N'Ko.\n"
+                "Install dengan `pip install deep-translator`.")
+
+# Upload file
 uploaded_file = st.file_uploader("Upload file Excel (.xlsx)", type=["xlsx"])
 
-if uploaded_file:
-    try:
-        df = pd.read_excel(uploaded_file)
-        st.success(f"File dimuat: '{uploaded_file.name}' | Total: {len(df)} baris.")
+if uploaded_file and target_lang:
+    df = pd.read_excel(uploaded_file)
+    st.success(f"File '{uploaded_file.name}' dimuat. {len(df)} baris.")
+    if st.button("🚀 Mulai Terjemahkan"):
+        texts = df.iloc[:, 1].tolist()
+        total = len(texts)
+        results = [None]*total
+        progress_bar = st.progress(0)
+        status = st.empty()
+        timer = st.empty()
+        start = time.time()
 
-        if not target_lang:
-            st.warning("⚠️ Silakan pilih atau masukkan kode bahasa tujuan terlebih dahulu.")
-        elif st.button("🚀 Mulai Terjemahkan"):
-            if df.shape[1] < 2:
-                st.error("Kolom B (Kolom ke-2) tidak ditemukan!")
-            else:
-                texts_to_process = df.iloc[:, 1].tolist()
-                total_rows = len(texts_to_process)
-                results = [None] * total_rows
-                
-                progress_bar = st.progress(0)
-                status_placeholder = st.empty()
-                time_placeholder = st.empty()
-                
-                start_time = time.time()
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+            future_to_idx = {
+                executor.submit(translate_with_fallback, t, target_lang): i
+                for i, t in enumerate(texts)
+            }
+            for completed, future in enumerate(future_to_idx):
+                idx = future_to_idx[future]
+                try:
+                    results[idx] = future.result()
+                except:
+                    results[idx] = None
+                progress_bar.progress((completed+1)/total)
+                elapsed = time.time()-start
+                eta = int((elapsed/(completed+1))*(total-completed-1))
+                status.write(f"⏳ {completed+1}/{total}")
+                timer.markdown(f"⏱️ Sisa: **{eta} detik**")
 
-                with ThreadPoolExecutor(max_workers=max_workers) as executor:
-                    future_to_idx = {executor.submit(translate_smart, texts_to_process[i], target_lang): i for i in range(total_rows)}
-                    
-                    completed = 0
-                    for future in future_to_idx:
-                        idx = future_to_idx[future]
-                        try:
-                            results[idx] = future.result()
-                        except:
-                            results[idx] = None
-                        
-                        completed += 1
-                        elapsed = time.time() - start_time
-                        avg_time = elapsed / completed
-                        eta = int(avg_time * (total_rows - completed))
-                        
-                        progress_bar.progress(completed / total_rows)
-                        status_placeholder.write(f"⏳ Memproses: {completed}/{total_rows} baris")
-                        time_placeholder.markdown(f"⏱️ Sisa waktu: **{eta} detik**")
+        df['Hasil Translate'] = results
+        st.subheader("Preview")
+        st.dataframe(df[['Hasil Translate']].head(5))
 
-                df['Hasil Translate'] = results
-                
-                # Cek jika banyak error unsupported
-                unsupported_count = sum(1 for res in results if res == "ERR_UNSUPPORTED")
-                if unsupported_count > 0:
-                    st.warning(f"⚠️ {unsupported_count} baris gagal karena kemungkinan kode bahasa **'{target_lang}'** tidak didukung Google Translate. Cek kembali kode atau gunakan API lain untuk bahasa langka.")
-
-                # --- PREVIEW ---
-                st.subheader("📋 Preview Hasil (5 Baris Pertama)")
-                st.dataframe(df[['Hasil Translate']].head(5))
-
-                # --- GENERASI FILE DENGAN WARNA ---
-                nama_file_murni = uploaded_file.name.rsplit('.', 1)[0]
-                nama_file_baru = f"{nama_file_murni} ({target_lang}).xlsx"
-
-                output = BytesIO()
-                with pd.ExcelWriter(output, engine='openpyxl') as writer:
-                    df.to_excel(writer, index=False, sheet_name='Sheet1')
-                    
-                    workbook = writer.book
-                    worksheet = writer.sheets['Sheet1']
-                    red_fill = PatternFill(start_color="FFC7CE", end_color="FFC7CE", fill_type="solid")
-                    
-                    # Warnai merah untuk hasil gagal/error/kosong
-                    for row_num, val in enumerate(results, start=2):
-                        if val is None or "ERR" in str(val) or val == "":
-                            for col_num in range(1, df.shape[1] + 1):
-                                worksheet.cell(row=row_num, column=col_num).fill = red_fill
-
-                st.success(f"✅ Selesai! Nama file: {nama_file_baru}")
-                
-                st.download_button(
-                    label="📥 Download Hasil Terjemahan",
-                    data=output.getvalue(),
-                    file_name=nama_file_baru,
-                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-                )
-
-    except Exception as e:
-        st.error(f"Terjadi kesalahan: {e}")
+        # Download dengan warna merah untuk error
+        nama_file = f"{uploaded_file.name.rsplit('.',1)[0]} ({target_lang}).xlsx"
+        output = BytesIO()
+        with pd.ExcelWriter(output, engine='openpyxl') as writer:
+            df.to_excel(writer, index=False, sheet_name='Sheet1')
+            ws = writer.sheets['Sheet1']
+            red_fill = PatternFill(start_color="FFC7CE", end_color="FFC7CE", fill_type="solid")
+            for row_num, val in enumerate(results, start=2):
+                if val is None or "ERR" in str(val) or val == "":
+                    for col in range(1, df.shape[1]+1):
+                        ws.cell(row=row_num, column=col).fill = red_fill
+        st.download_button("📥 Download", data=output.getvalue(), file_name=nama_file,
+                           mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
