@@ -7,74 +7,7 @@ import time
 import random
 from openpyxl.styles import PatternFill
 
-# ========== DAFTAR BAHASA LENGKAP ==========
-LANGUAGES = {
-    "Abkhaz": "ab", "Acehnese": "ace", "Acholi": "ach", "Afar": "aa", "Afrikaans": "af",
-    "Albanian": "sq", "Alur": "alz", "Amharic": "am", "Arabic": "ar", "Armenian": "hy",
-    "Assamese": "as", "Avar": "av", "Awadhi": "awa", "Aymara": "ay", "Azerbaijani": "az",
-    "Balinese": "ban", "Baluchi": "bal", "Bambara": "bm", "Bashkir": "ba", "Basque": "eu",
-    "Batak Karo": "btx", "Batak Simalungun": "bts", "Batak Toba": "bbc", "Belarusian": "be",
-    "Bemba": "bem", "Bengali": "bn", "Betawi": "bew", "Bhojpuri": "bho", "Bikol": "bik",
-    "Bosnian": "bs", "Breton": "br", "Bulgarian": "bg", "Buryat": "bua",
-    "Cantonese": "yue", "Catalan": "ca", "Cebuano": "ceb", "Chamorro": "ch",
-    "Chechen": "ce", "Chichewa (Nyanja)": "ny", "Chinese (Simplified)": "zh-CN",
-    "Chinese (Traditional)": "zh-TW", "Chuukese": "chk", "Chuvash": "cv",
-    "Corsican": "co", "Crimean Tatar": "crh", "Croatian": "hr", "Czech": "cs",
-    "Danish": "da", "Dari": "prs", "Dinka": "din", "Divehi": "dv", "Dogri": "doi",
-    "Dombe": "dov", "Dutch": "nl", "Dzongkha": "dz",
-    "English": "en", "Esperanto": "eo", "Estonian": "et", "Ewe": "ee",
-    "Faroese": "fo", "Fijian": "fj", "Filipino (Tagalog)": "tl", "Finnish": "fi",
-    "Fon": "fon", "French": "fr", "French (Canada)": "fr-CA", "French (France)": "fr-FR",
-    "Frisian": "fy", "Friulian": "fur", "Fulfulde": "ff",
-    "Ga": "gaa", "Galician": "gl", "Ganda (Luganda)": "lg", "Georgian": "ka",
-    "German": "de", "Greek": "el", "Guarani": "gn", "Gujarati": "gu",
-    "Haitian Creole": "ht", "Hakha Chin": "cnh", "Hausa": "ha", "Hawaiian": "haw",
-    "Hebrew": "he", "Hiligaynon": "hil", "Hindi": "hi", "Hmong": "hmn",
-    "Hungarian": "hu", "Hunsrik": "hrx",
-    "Icelandic": "is", "Igbo": "ig", "Iloko": "ilo", "Indonesian": "id",
-    "Irish": "ga", "Italian": "it",
-    "Jamaican Patois": "jam", "Japanese": "ja", "Javanese": "jv", "Jingpo": "kac",
-    "Kalaallisut": "kl", "Kannada": "kn", "Kanuri": "kr", "Kapampangan": "pam",
-    "Kazakh": "kk", "Khasi": "kha", "Khmer": "km", "Kiga": "cgg", "Kikongo": "kg",
-    "Kinyarwanda": "rw", "Kituba": "ktu", "Kokborok": "trp", "Komi": "kv",
-    "Konkani": "gom", "Korean": "ko", "Kurdish (Kurmanji)": "ku", "Kyrgyz": "ky",
-    "Lao": "lo", "Latgalian": "ltg", "Latin": "la", "Latvian": "lv",
-    "Ligurian": "lij", "Limburgish": "li", "Lithuanian": "lt", "Lombard": "lmo",
-    "Luo": "luo", "Luxembourgish": "lb",
-    "Macedonian": "mk", "Madurese": "mad", "Makassar": "mak", "Malagasy": "mg",
-    "Malay": "ms", "Malay (Jawi)": "ms-Arab", "Malayalam": "ml", "Maltese": "mt",
-    "Mam": "mam", "Manx": "gv", "Maori": "mi", "Marathi": "mr", "Marshallese": "mh",
-    "Marwadi": "mwr", "Mauritian Creole": "mfe", "Meadow Mari": "mhr",
-    "Minang": "min", "Mongolian": "mn", "Myanmar (Burmese)": "my",
-    "Nahuatl (Eastern Huasteca)": "nhe", "Ndau": "ndc", "Ndebele (South)": "nr",
-    "Nepalbhasa (Newari)": "new", "Nepali": "ne", "NKo": "nqo", "Norwegian": "no",
-    "Nuer": "nus",
-    "Occitan": "oc", "Odia (Oriya)": "or", "Oromo": "om", "Ossetian": "os",
-    "Pangasinan": "pag", "Papiamento": "pap", "Pashto": "ps", "Persian": "fa",
-    "Polish": "pl", "Portuguese": "pt", "Portuguese (Portugal)": "pt-PT",
-    "Punjabi": "pa", "Punjabi (Shahmukhi)": "pa-Arab",
-    "Q'eqchi'": "kek",
-    "Romani": "rom", "Romanian": "ro", "Rundi": "rn", "Russian": "ru",
-    "Samoan": "sm", "Sami (North)": "se", "Sango": "sg", "Santali": "sat",
-    "Scots Gaelic": "gd", "Sepedi": "nso", "Serbian": "sr", "Sesotho": "st",
-    "Seychellois Creole": "crs", "Shan": "shn", "Shona": "sn", "Sicilian": "scn",
-    "Silesian": "szl", "Sindhi": "sd", "Sinhala": "si", "Slovak": "sk",
-    "Slovenian": "sl", "Somali": "so", "Spanish": "es", "Sundanese": "su",
-    "Susu": "sus", "Swahili": "sw", "Swati": "ss", "Swedish": "sv",
-    "Tahitian": "ty", "Tajik": "tg", "Tamazight": "ber", "Tamazight (Tifinagh)": "ber-Tfng",
-    "Tamil": "ta", "Tatar": "tt", "Telugu": "te", "Tetum": "tet", "Thai": "th",
-    "Tibetan": "bo", "Tigrinya": "ti", "Tiv": "tiv", "Tok Pisin": "tpi",
-    "Tongan": "to", "Tswana": "tn", "Tulu": "tcy", "Tumbuka": "tum", "Turkish": "tr",
-    "Turkmen": "tk", "Tuvan": "tyv",
-    "Udmurt": "udm", "Ukrainian": "uk", "Urdu": "ur", "Uyghur": "ug", "Uzbek": "uz",
-    "Venda": "ve", "Venetian": "vec", "Vietnamese": "vi",
-    "Waray": "war", "Welsh": "cy", "Wolof": "wo",
-    "Xhosa": "xh",
-    "Yakut": "sah", "Yiddish": "yi", "Yoruba": "yo", "Yucatec Maya": "yua",
-    "Zapotec": "zap", "Zulu": "zu",
-    "--- Lainnya (ketik kode manual) ---": "other"
-}
-
+# --- KONFIGURASI USER-AGENT ---
 USER_AGENTS = [
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36",
     "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/118.0.0.0 Safari/537.36",
@@ -82,174 +15,160 @@ USER_AGENTS = [
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/119.0"
 ]
 
-# ========== FUNGSI TRANSLATE PER PROVIDER ==========
-def translate_google_gtx(text, target, source='id'):
-    headers = {"User-Agent": random.choice(USER_AGENTS)}
-    url = "https://translate.googleapis.com/translate_a/single"
-    params = {"client": "gtx", "sl": source, "tl": target, "dt": "t", "q": text.strip()}
-    try:
-        resp = requests.get(url, params=params, headers=headers, timeout=10)
-        if resp.status_code == 200:
-            parts = [part[0] for part in resp.json()[0] if part[0]]
-            return "".join(parts)
-        elif resp.status_code == 429:
-            return "ERR_LIMIT"
-        else:
-            return "ERR_UNSUPPORTED"
-    except:
-        return None
-
-def translate_deep_translator(text, target, source='id'):
-    """Fallback via library deep-translator (Google Web)."""
-    try:
-        from deep_translator import GoogleTranslator
-        # deep-translator bisa menerima 'auto' untuk source
-        translated = GoogleTranslator(source='auto', target=target).translate(text.strip())
-        return translated
-    except Exception:
-        return None
-
-# ========== FUNGSI UTAMA DENGAN FALLBACK ==========
-def translate_with_fallback(text, target, source='id'):
-    """Coba provider sesuai urutan di FALLBACK_ORDER (global dari sidebar)."""
+# --- FUNGSI INTI TRANSLATE ---
+def translate_core(text, target, source):
+    """Request ke Google API gtx."""
     if not text or str(text).strip().lower() in ["nan", "none", ""]:
         return ""
-
-    text = str(text).strip()
-    # Jika teks panjang, pecah dulu (fallback hanya untuk potongan)
-    if len(text) > 4500:
-        chunks = [text[i:i+4000] for i in range(0, len(text), 4000)]
-        results = []
-        for chunk in chunks:
-            res = translate_with_fallback(chunk, target, source)
-            if res and "ERR" not in res:
-                results.append(res)
-            elif res == "ERR_LIMIT":
-                return "ERR_LIMIT"
-            elif res == "ERR_UNSUPPORTED":
-                return "ERR_UNSUPPORTED"
-            else:
-                return None
-        return " ".join(results)
-
-    for provider in FALLBACK_ORDER:
-        if provider == "google_gtx":
-            result = translate_google_gtx(text, target, source)
-        elif provider == "deep_translator":
-            result = translate_deep_translator(text, target, source)
-        elif provider == "google_cloud":
-            # Hanya bisa dipakai jika kunci diisi
-            if st.session_state.get("gc_key"):
-                result = translate_google_cloud_api(text, target, source, st.session_state.gc_key)
-            else:
-                continue
-        else:
-            continue
-
-        if result is None or "ERR" in str(result):
-            continue
-        return result
-    return "ERR_UNSUPPORTED"
-
-# Placeholder cloud function (tidak berubah, hanya jika ada key)
-def translate_google_cloud_api(text, target, source, api_key):
-    url = "https://translation.googleapis.com/language/translate/v2"
-    params = {"q": text, "target": target, "source": source, "format": "text", "key": api_key}
+    
+    headers = {"User-Agent": random.choice(USER_AGENTS)}
+    base_url = "https://translate.googleapis.com/translate_a/single"
+    
+    params = {
+        "client": "gtx",
+        "sl": source,
+        "tl": target,
+        "dt": "t",
+        "q": str(text).strip()
+    }
+    
     try:
-        resp = requests.get(url, params=params, timeout=10)
-        if resp.status_code == 200:
-            return resp.json()["data"]["translations"][0]["translatedText"]
-        elif resp.status_code == 403:
+        response = requests.get(base_url, params=params, headers=headers, timeout=12)
+        if response.status_code == 200:
+            result_json = response.json()
+            translated_parts = [part[0] for part in result_json[0] if part[0]]
+            return "".join(translated_parts)
+        elif response.status_code == 429:
             return "ERR_LIMIT"
+    except Exception:
+        pass
+    return None
+
+def translate_smart(text, target, source):
+    """Logika Chunking: Memecah teks >4500 karakter."""
+    text_str = str(text).strip()
+    
+    if len(text_str) <= 4500:
+        return translate_core(text_str, target, source)
+    
+    # Pecah per 4000 karakter agar aman dari limit URL
+    chunks = [text_str[i:i+4000] for i in range(0, len(text_str), 4000)]
+    translated_results = []
+    
+    for c in chunks:
+        res = translate_core(c, target, source)
+        if res and res != "ERR_LIMIT":
+            translated_results.append(res)
         else:
-            return "ERR_UNSUPPORTED"
-    except:
-        return None
+            return "ERR_LIMIT" if res == "ERR_LIMIT" else None
+            
+    return " ".join(translated_results)
 
-# ========== STREAMLIT UI ==========
-st.set_page_config(page_title="Turbo Translator + Fallback", page_icon="⚡", layout="wide")
-st.title("⚡ Turbo Excel Translator + Fallback")
-st.markdown("... (deskripsi) ...")
+# --- ANTARMUKA STREAMLIT ---
+st.set_page_config(page_title="Penerjemah Bambara → N'Ko", page_icon="🔤", layout="wide")
 
-# Sidebar
-st.sidebar.header("⚙️ Bahasa & Provider")
-selected_lang = st.sidebar.selectbox("🌍 Bahasa Tujuan", list(LANGUAGES.keys()),
-                                     index=list(LANGUAGES.values()).index("en"))
-if LANGUAGES[selected_lang] == "other":
-    target_lang = st.sidebar.text_input("Kode bahasa manual", "")
-else:
-    target_lang = LANGUAGES[selected_lang]
+st.title("🔤 Penerjemah Excel: Bambara ke N'Ko")
+st.markdown("Unggah file Excel Anda, pilih kolom teks, dan terjemahkan otomatis dari Bahasa Bambara ke aksara N'Ko.")
 
-max_workers = st.sidebar.slider("Workers", 1, 15, 5)
+# --- SIDEBAR ---
+st.sidebar.header("⚙️ Pengaturan Bahasa")
+source_lang = st.sidebar.text_input("Kode Bahasa Sumber", value="bm", 
+                                    help="Kode ISO 639-1 untuk bahasa sumber. Default: bm (Bambara)")
+target_lang = st.sidebar.text_input("Kode Bahasa Tujuan", value="nqo", 
+                                    help="Kode bahasa tujuan. Default: nqo (N'Ko)")
 
-st.sidebar.header("🔄 Fallback Order")
-fallback_options = st.sidebar.multiselect(
-    "Urutan provider yang dicoba:",
-    ["google_gtx", "deep_translator", "google_cloud"],
-    default=["google_gtx", "deep_translator"],
-    help="Akan dicoba berurutan. google_cloud hanya muncul jika Anda isi kunci di bawah."
+max_workers = st.sidebar.slider("Kecepatan (Workers)", 1, 15, 5, 
+                                help="Jumlah permintaan simultan. Disarankan 5–10.")
+
+st.sidebar.markdown("---")
+st.sidebar.info(
+    "📌 **Catatan:**\n"
+    "- Kolom pertama di Excel akan diabaikan, kolom kedua (indeks 1) dianggap sebagai teks sumber.\n"
+    "- Jika sel hasil berwarna merah saat diunduh, berarti baris tersebut gagal diterjemahkan (limit/kosong).\n"
+    "- Kurangi *Workers* jika sering terkena limit."
 )
-# Simpan di global list agar dipakai di fungsi
-FALLBACK_ORDER = fallback_options
 
-# Input kunci API opsional (hanya untuk google_cloud)
-if "google_cloud" in FALLBACK_ORDER:
-    gc_key = st.sidebar.text_input("🔑 Kunci API Google Cloud (opsional)", type="password")
-    if gc_key:
-        st.session_state.gc_key = gc_key
-else:
-    st.session_state.gc_key = None
-
-st.sidebar.info("ℹ️ **deep_translator** adalah fallback gratis yang menggunakan endpoint Google Web.\n"
-                "Mungkin bisa menangani bahasa baru seperti N'Ko.\n"
-                "Install dengan `pip install deep-translator`.")
-
-# Upload file
+# --- PROSES UTAMA ---
 uploaded_file = st.file_uploader("Upload file Excel (.xlsx)", type=["xlsx"])
 
-if uploaded_file and target_lang:
-    df = pd.read_excel(uploaded_file)
-    st.success(f"File '{uploaded_file.name}' dimuat. {len(df)} baris.")
-    if st.button("🚀 Mulai Terjemahkan"):
-        texts = df.iloc[:, 1].tolist()
-        total = len(texts)
-        results = [None]*total
-        progress_bar = st.progress(0)
-        status = st.empty()
-        timer = st.empty()
-        start = time.time()
+if uploaded_file:
+    try:
+        df = pd.read_excel(uploaded_file)
+        st.success(f"File berhasil dimuat: **{uploaded_file.name}** | Total baris: {len(df)}")
 
-        with ThreadPoolExecutor(max_workers=max_workers) as executor:
-            future_to_idx = {
-                executor.submit(translate_with_fallback, t, target_lang): i
-                for i, t in enumerate(texts)
-            }
-            for completed, future in enumerate(future_to_idx):
-                idx = future_to_idx[future]
-                try:
-                    results[idx] = future.result()
-                except:
-                    results[idx] = None
-                progress_bar.progress((completed+1)/total)
-                elapsed = time.time()-start
-                eta = int((elapsed/(completed+1))*(total-completed-1))
-                status.write(f"⏳ {completed+1}/{total}")
-                timer.markdown(f"⏱️ Sisa: **{eta} detik**")
+        if st.button("🚀 Mulai Terjemahkan"):
+            if df.shape[1] < 2:
+                st.error("File harus memiliki minimal 2 kolom. Kolom ke-2 akan dijadikan sumber teks.")
+            else:
+                texts_to_process = df.iloc[:, 1].tolist()
+                total_rows = len(texts_to_process)
+                results = [None] * total_rows
+                
+                # UI Progress
+                progress_bar = st.progress(0)
+                status_placeholder = st.empty()
+                time_placeholder = st.empty()
+                
+                start_time = time.time()
 
-        df['Hasil Translate'] = results
-        st.subheader("Preview")
-        st.dataframe(df[['Hasil Translate']].head(5))
+                # --- MULTITHREADING ---
+                with ThreadPoolExecutor(max_workers=max_workers) as executor:
+                    future_to_idx = {
+                        executor.submit(translate_smart, texts_to_process[i], target_lang, source_lang): i 
+                        for i in range(total_rows)
+                    }
+                    
+                    completed = 0
+                    for future in future_to_idx:
+                        idx = future_to_idx[future]
+                        try:
+                            results[idx] = future.result()
+                        except:
+                            results[idx] = None
+                        
+                        completed += 1
+                        
+                        # Estimasi waktu
+                        elapsed = time.time() - start_time
+                        avg_time = elapsed / completed
+                        eta = int(avg_time * (total_rows - completed))
+                        
+                        progress_bar.progress(completed / total_rows)
+                        status_placeholder.write(f"⏳ Memproses: {completed}/{total_rows} baris")
+                        time_placeholder.markdown(f"⏱️ Sisa waktu: **{eta} detik**")
 
-        # Download dengan warna merah untuk error
-        nama_file = f"{uploaded_file.name.rsplit('.',1)[0]} ({target_lang}).xlsx"
-        output = BytesIO()
-        with pd.ExcelWriter(output, engine='openpyxl') as writer:
-            df.to_excel(writer, index=False, sheet_name='Sheet1')
-            ws = writer.sheets['Sheet1']
-            red_fill = PatternFill(start_color="FFC7CE", end_color="FFC7CE", fill_type="solid")
-            for row_num, val in enumerate(results, start=2):
-                if val is None or "ERR" in str(val) or val == "":
-                    for col in range(1, df.shape[1]+1):
-                        ws.cell(row=row_num, column=col).fill = red_fill
-        st.download_button("📥 Download", data=output.getvalue(), file_name=nama_file,
-                           mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+                df['Hasil Terjemahan (N\'Ko)'] = results
+                
+                # --- PREVIEW ---
+                st.subheader("📋 Preview (5 Baris Pertama)")
+                st.dataframe(df[['Hasil Terjemahan (N\'Ko)']].head(5))
+
+                # --- GENERASI FILE DENGAN WARNA & NAMA DINAMIS ---
+                nama_file_murni = uploaded_file.name.rsplit('.', 1)[0]
+                nama_file_baru = f"{nama_file_murni} ({source_lang} → {target_lang}).xlsx"
+
+                output = BytesIO()
+                with pd.ExcelWriter(output, engine='openpyxl') as writer:
+                    df.to_excel(writer, index=False, sheet_name='Sheet1')
+                    
+                    workbook = writer.book
+                    worksheet = writer.sheets['Sheet1']
+                    red_fill = PatternFill(start_color="FFC7CE", end_color="FFC7CE", fill_type="solid")
+                    
+                    # Tandai baris yang gagal
+                    for row_num, val in enumerate(results, start=2):
+                        if val is None or val == "ERR_LIMIT" or val == "":
+                            for col_num in range(1, df.shape[1] + 1):
+                                worksheet.cell(row=row_num, column=col_num).fill = red_fill
+
+                st.success(f"✅ Terjemahan selesai! File siap diunduh: **{nama_file_baru}**")
+                
+                st.download_button(
+                    label="📥 Unduh Hasil Terjemahan",
+                    data=output.getvalue(),
+                    file_name=nama_file_baru,
+                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                )
+
+    except Exception as e:
+        st.error(f"Terjadi kesalahan: {e}")
