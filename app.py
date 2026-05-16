@@ -16,11 +16,12 @@ USER_AGENTS = [
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/119.0"
 ]
 
-# --- DAFTAR KODE BAHASA UMUM (639-1) ---
-# Ditambahkan agar user mudah memilih, tapi tetap bisa manual input
+# --- DAFTAR KODE BAHASA UMUM & KHUSUS ---
+# Ditambahkan Nko (nqo) dan Dari (fa-AF)
 COMMON_LANGUAGES = {
     "Inggris": "en",
-    "Dari (Afghanistan)": "fa-AF",  # Kode spesifik untuk Dari
+    "Dari (Afghanistan)": "fa-AF",
+    "Nko (Afrika Barat)": "nqo",  # <--- TAMBAHAN BUAT NKO
     "Arab": "ar",
     "Jepang": "ja",
     "Korea": "ko",
@@ -65,7 +66,8 @@ def translate_core(text, target, source='id'):
 def translate_smart(text, target, use_indirect=False):
     """
     Logika Chunking & Indirect Translation.
-    Jika use_indirect=True (untuk Dari), alur: ID -> EN -> Target.
+    Jika use_indirect=True (untuk Dari/Nko), alur: ID -> EN -> Target.
+    Ini CRITICAL buat bahasa minoritas kayak Nko biar gak kosong hasilnya.
     """
     text_str = str(text).strip()
     
@@ -74,13 +76,15 @@ def translate_smart(text, target, use_indirect=False):
 
     # Tentukan alur terjemahan
     if use_indirect:
-        # Langkah 1: Indonesia -> Inggris
+        # Langkah 1: Indonesia -> Inggris (Base yang kuat)
         step1 = translate_core(text_str, 'en', source='id')
+        
+        # Kalau langkah 1 gagal/limit, stop
         if not step1 or step1 == "ERR_LIMIT":
             return step1 if step1 == "ERR_LIMIT" else None
         
-        # Langkah 2: Inggris -> Target (fa-AF)
-        # Kita pecah lagi jika hasil intermediate terlalu panjang, meski jarang terjadi
+        # Langkah 2: Inggris -> Target (fa-AF atau nqo)
+        # Kita pecah lagi jika hasil intermediate terlalu panjang
         if len(step1) <= 4500:
             final_result = translate_core(step1, target, source='en')
             return final_result
@@ -97,7 +101,7 @@ def translate_smart(text, target, use_indirect=False):
             return " ".join(translated_results)
 
     else:
-        # Langsung Translate (ID -> Target)
+        # Langsung Translate (ID -> Target) untuk bahasa populer
         if len(text_str) <= 4500:
             return translate_core(text_str, target, source='id')
         
@@ -128,7 +132,7 @@ st.sidebar.header("⚙️ Pengaturan")
 lang_option = st.sidebar.selectbox(
     "Pilih Bahasa Tujuan",
     options=list(COMMON_LANGUAGES.keys()),
-    index=1  # Default ke Dari (Afghanistan) karena konteks user sebelumnya
+    index=1  # Default ke Dari
 )
 
 # Input manual jika ingin kode lain
@@ -139,10 +143,13 @@ else:
     target_lang = COMMON_LANGUAGES[lang_option]
 
 # Deteksi otomatis apakah perlu strategi "Indirect Translation"
-# Strategi ID->EN->FA-AF biasanya lebih bagus untuk Dari karena data pelatihan EN->FA lebih banyak
-is_dari_target = (target_lang == "fa-AF")
-if is_dari_target:
-    st.sidebar.info("🇦🇫 **Mode Dari Aktif:** Sistem akan menggunakan jalur terjemahan tidak langsung (ID→EN→FA-AF) untuk hasil yang lebih natural.")
+# Strategi ID->EN->Target WAJIB buat Dari (fa-AF) dan Nko (nqo) karena data langsungnya sedikit
+hard_languages = ["fa-AF", "nqo"]
+is_hard_target = (target_lang in hard_languages)
+
+if is_hard_target:
+    lang_name = "Dari" if target_lang == "fa-AF" else "Nko"
+    st.sidebar.info(f"🌍 **Mode {lang_name} Aktif:** Sistem akan menggunakan jalur terjemahan tidak langsung (ID→EN→{target_lang}) karena data bahasa ini terbatas. Hasil akan lebih akurat.")
 
 max_workers = st.sidebar.slider("Kecepatan (Workers)", 1, 15, 5, help="Disarankan 5-10 agar aman.")
 
@@ -177,7 +184,7 @@ if uploaded_file:
                 with ThreadPoolExecutor(max_workers=max_workers) as executor:
                     # Submit tasks dengan parameter tambahan use_indirect
                     future_to_idx = {
-                        executor.submit(translate_smart, texts_to_process[i], target_lang, use_indirect=is_dari_target): i 
+                        executor.submit(translate_smart, texts_to_process[i], target_lang, use_indirect=is_hard_target): i 
                         for i in range(total_rows)
                     }
                     
