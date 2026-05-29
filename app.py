@@ -8,7 +8,6 @@ import random
 from openpyxl.styles import PatternFill
 
 # --- KONFIGURASI USER-AGENT ---
-# Rotasi identitas browser agar tidak mudah diblokir Google
 USER_AGENTS = [
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36",
     "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/118.0.0.0 Safari/537.36",
@@ -17,7 +16,7 @@ USER_AGENTS = [
 ]
 
 # --- FUNGSI INTI TRANSLATE ---
-def translate_core(text, target, source='ms'):  # ← SUMBER DIUBAH KE BAHASA MELAYU (ms)
+def translate_core(text, target, source='ms'):  # ← Sumber: BAHASA MELAYU (ms)
     """Request ke Google API gtx."""
     if not text or str(text).strip().lower() in ["nan", "none", ""]:
         return ""
@@ -27,8 +26,8 @@ def translate_core(text, target, source='ms'):  # ← SUMBER DIUBAH KE BAHASA ME
     
     params = {
         "client": "gtx",
-        "sl": source,
-        "tl": target,
+        "sl": source,   # 'ms' = Melayu
+        "tl": target,   # 'yue' = Kanton (dari input sidebar)
         "dt": "t",
         "q": str(text).strip()
     }
@@ -37,7 +36,6 @@ def translate_core(text, target, source='ms'):  # ← SUMBER DIUBAH KE BAHASA ME
         response = requests.get(base_url, params=params, headers=headers, timeout=12)
         if response.status_code == 200:
             result_json = response.json()
-            # Google memecah hasil jika ada banyak kalimat, kita gabungkan kembali
             translated_parts = [part[0] for part in result_json[0] if part[0]]
             return "".join(translated_parts)
         elif response.status_code == 429:
@@ -47,13 +45,12 @@ def translate_core(text, target, source='ms'):  # ← SUMBER DIUBAH KE BAHASA ME
     return None
 
 def translate_smart(text, target):
-    """Logika Chunking: Memecah teks raksasa (>4500 karakter)."""
+    """Logika Chunking: Memecah teks besar (>4500 karakter)."""
     text_str = str(text).strip()
     
     if len(text_str) <= 4500:
         return translate_core(text_str, target)
     
-    # Pecah per 4000 karakter agar aman dari limit URL
     chunks = [text_str[i:i+4000] for i in range(0, len(text_str), 4000)]
     translated_results = []
     
@@ -72,12 +69,12 @@ st.set_page_config(page_title="Turbo Translator Pro v2", page_icon="⚡", layout
 st.title("⚡ Turbo Excel Translator")
 st.markdown("Alat translasi otomatis untuk file Excel buatan fadhil ganteng kece keren hebat slebew.  kalo gatau kodenya tanya gugel nulisnya gini 639-1 kode bahasa ..... bahasa mu ketiken. JANGAN LUPA DIKASIH LETI 1 BARIS DIATAS NYA")
 st.markdown("PAKAILAH 1 TAB AJA JANGAN MULTI TAB WOYYYY RUSAK HOST E, NDAK TAK HOST NO MANEH WM")
+
 # --- SIDEBAR ---
 st.sidebar.header("⚙️ Pengaturan")
-# Target default diubah ke yue (Kanton)
 target_lang = st.sidebar.text_input(
     "Kode Bahasa Tujuan",
-    value="yue",  # ← DEFAULT JADI KANTON
+    value="yue",  # ← TUJUAN: KANTON (yue)
     help="Default: yue (Kanton). Contoh lain: en, ja, fi, ko, ar."
 )
 max_workers = st.sidebar.slider("Kecepatan (Workers)", 1, 15, 5, help="Disarankan 5-10 agar aman.")
@@ -101,14 +98,12 @@ if uploaded_file:
                 total_rows = len(texts_to_process)
                 results = [None] * total_rows
                 
-                # UI Progress
                 progress_bar = st.progress(0)
                 status_placeholder = st.empty()
                 time_placeholder = st.empty()
                 
                 start_time = time.time()
 
-                # --- MULTITHREADING ---
                 with ThreadPoolExecutor(max_workers=max_workers) as executor:
                     future_to_idx = {
                         executor.submit(translate_smart, texts_to_process[i], target_lang): i
@@ -125,23 +120,19 @@ if uploaded_file:
                         
                         completed += 1
                         
-                        # Hitung Estimasi Waktu
                         elapsed = time.time() - start_time
                         avg_time = elapsed / completed
                         eta = int(avg_time * (total_rows - completed))
                         
-                        # Update Progress UI
                         progress_bar.progress(completed / total_rows)
                         status_placeholder.write(f"⏳ Memproses: {completed}/{total_rows} baris")
                         time_placeholder.markdown(f"⏱️ Sisa waktu: **{eta} detik**")
 
                 df['Hasil Translate'] = results
                 
-                # --- PREVIEW ---
                 st.subheader("📋 Preview Hasil (5 Baris Pertama)")
                 st.dataframe(df[['Hasil Translate']].head(5))
 
-                # --- GENERASI FILE DENGAN WARNA & NAMA DINAMIS ---
                 nama_file_murni = uploaded_file.name.rsplit('.', 1)[0]
                 nama_file_baru = f"{nama_file_murni} ({target_lang}).xlsx"
 
@@ -153,7 +144,6 @@ if uploaded_file:
                     worksheet = writer.sheets['Sheet1']
                     red_fill = PatternFill(start_color="FFC7CE", end_color="FFC7CE", fill_type="solid")
                     
-                    # Cek error untuk diwarnai merah
                     for row_num, val in enumerate(results, start=2):
                         if val is None or val == "ERR_LIMIT" or val == "":
                             for col_num in range(1, df.shape[1] + 1):
