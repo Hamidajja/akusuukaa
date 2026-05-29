@@ -16,25 +16,8 @@ USER_AGENTS = [
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/119.0"
 ]
 
-# --- DAFTAR KODE BAHASA UMUM & KHUSUS ---
-# Ditambahkan Nko (nqo) dan Dari (fa-AF)
-COMMON_LANGUAGES = {
-    "Inggris": "en",
-    "Dari (Afghanistan)": "fa-AF",
-    "Nko (Afrika Barat)": "nqo",  # <--- TAMBAHAN BUAT NKO
-    "Arab": "ar",
-    "Jepang": "ja",
-    "Korea": "ko",
-    "Mandarin": "zh-CN",
-    "Prancis": "fr",
-    "Jerman": "de",
-    "Spanyol": "es",
-    "Rusia": "ru",
-    "Indonesia": "id"
-}
-
 # --- FUNGSI INTI TRANSLATE ---
-def translate_core(text, target, source='id'):
+def translate_core(text, target, source='ms'):  # ← SUMBER DIUBAH KE BAHASA MELAYU (ms)
     """Request ke Google API gtx."""
     if not text or str(text).strip().lower() in ["nan", "none", ""]:
         return ""
@@ -63,60 +46,25 @@ def translate_core(text, target, source='id'):
         pass
     return None
 
-def translate_smart(text, target, use_indirect=False):
-    """
-    Logika Chunking & Indirect Translation.
-    Jika use_indirect=True (untuk Dari/Nko), alur: ID -> EN -> Target.
-    Ini CRITICAL buat bahasa minoritas kayak Nko biar gak kosong hasilnya.
-    """
+def translate_smart(text, target):
+    """Logika Chunking: Memecah teks raksasa (>4500 karakter)."""
     text_str = str(text).strip()
     
-    if not text_str:
-        return ""
-
-    # Tentukan alur terjemahan
-    if use_indirect:
-        # Langkah 1: Indonesia -> Inggris (Base yang kuat)
-        step1 = translate_core(text_str, 'en', source='id')
-        
-        # Kalau langkah 1 gagal/limit, stop
-        if not step1 or step1 == "ERR_LIMIT":
-            return step1 if step1 == "ERR_LIMIT" else None
-        
-        # Langkah 2: Inggris -> Target (fa-AF atau nqo)
-        # Kita pecah lagi jika hasil intermediate terlalu panjang
-        if len(step1) <= 4500:
-            final_result = translate_core(step1, target, source='en')
-            return final_result
+    if len(text_str) <= 4500:
+        return translate_core(text_str, target)
+    
+    # Pecah per 4000 karakter agar aman dari limit URL
+    chunks = [text_str[i:i+4000] for i in range(0, len(text_str), 4000)]
+    translated_results = []
+    
+    for c in chunks:
+        res = translate_core(c, target)
+        if res and res != "ERR_LIMIT":
+            translated_results.append(res)
         else:
-            # Jika hasil intermediate panjang, chunking di langkah 2
-            chunks = [step1[i:i+4000] for i in range(0, len(step1), 4000)]
-            translated_results = []
-            for c in chunks:
-                res = translate_core(c, target, source='en')
-                if res and res != "ERR_LIMIT":
-                    translated_results.append(res)
-                else:
-                    return "ERR_LIMIT" if res == "ERR_LIMIT" else None
-            return " ".join(translated_results)
-
-    else:
-        # Langsung Translate (ID -> Target) untuk bahasa populer
-        if len(text_str) <= 4500:
-            return translate_core(text_str, target, source='id')
-        
-        # Pecah per 4000 karakter agar aman dari limit URL
-        chunks = [text_str[i:i+4000] for i in range(0, len(text_str), 4000)]
-        translated_results = []
-        
-        for c in chunks:
-            res = translate_core(c, target, source='id')
-            if res and res != "ERR_LIMIT":
-                translated_results.append(res)
-            else:
-                return "ERR_LIMIT" if res == "ERR_LIMIT" else None
-                
-        return " ".join(translated_results)
+            return "ERR_LIMIT" if res == "ERR_LIMIT" else None
+            
+    return " ".join(translated_results)
 
 # --- ANTARMUKA STREAMLIT ---
 st.set_page_config(page_title="Turbo Translator Pro v2", page_icon="⚡", layout="wide")
@@ -124,33 +72,14 @@ st.set_page_config(page_title="Turbo Translator Pro v2", page_icon="⚡", layout
 st.title("⚡ Turbo Excel Translator")
 st.markdown("Alat translasi otomatis untuk file Excel buatan fadhil ganteng kece keren hebat slebew.  kalo gatau kodenya tanya gugel nulisnya gini 639-1 kode bahasa ..... bahasa mu ketiken. JANGAN LUPA DIKASIH LETI 1 BARIS DIATAS NYA")
 st.markdown("PAKAILAH 1 TAB AJA JANGAN MULTI TAB WOYYYY RUSAK HOST E, NDAK TAK HOST NO MANEH WM")
-
 # --- SIDEBAR ---
 st.sidebar.header("⚙️ Pengaturan")
-
-# Pilihan Bahasa yang Lebih User Friendly
-lang_option = st.sidebar.selectbox(
-    "Pilih Bahasa Tujuan",
-    options=list(COMMON_LANGUAGES.keys()),
-    index=1  # Default ke Dari
+# Target default diubah ke yue (Kanton)
+target_lang = st.sidebar.text_input(
+    "Kode Bahasa Tujuan",
+    value="yue",  # ← DEFAULT JADI KANTON
+    help="Default: yue (Kanton). Contoh lain: en, ja, fi, ko, ar."
 )
-
-# Input manual jika ingin kode lain
-use_custom_code = st.sidebar.checkbox("Gunakan Kode Bahasa Manual")
-if use_custom_code:
-    target_lang = st.sidebar.text_input("Masukkan Kode Bahasa (639-1)", value="en")
-else:
-    target_lang = COMMON_LANGUAGES[lang_option]
-
-# Deteksi otomatis apakah perlu strategi "Indirect Translation"
-# Strategi ID->EN->Target WAJIB buat Dari (fa-AF) dan Nko (nqo) karena data langsungnya sedikit
-hard_languages = ["fa-AF", "nqo"]
-is_hard_target = (target_lang in hard_languages)
-
-if is_hard_target:
-    lang_name = "Dari" if target_lang == "fa-AF" else "Nko"
-    st.sidebar.info(f"🌍 **Mode {lang_name} Aktif:** Sistem akan menggunakan jalur terjemahan tidak langsung (ID→EN→{target_lang}) karena data bahasa ini terbatas. Hasil akan lebih akurat.")
-
 max_workers = st.sidebar.slider("Kecepatan (Workers)", 1, 15, 5, help="Disarankan 5-10 agar aman.")
 
 st.sidebar.markdown("---")
@@ -180,11 +109,9 @@ if uploaded_file:
                 start_time = time.time()
 
                 # --- MULTITHREADING ---
-                # Kita kirim parameter use_indirect ke fungsi translate_smart
                 with ThreadPoolExecutor(max_workers=max_workers) as executor:
-                    # Submit tasks dengan parameter tambahan use_indirect
                     future_to_idx = {
-                        executor.submit(translate_smart, texts_to_process[i], target_lang, use_indirect=is_hard_target): i 
+                        executor.submit(translate_smart, texts_to_process[i], target_lang): i
                         for i in range(total_rows)
                     }
                     
@@ -215,7 +142,6 @@ if uploaded_file:
                 st.dataframe(df[['Hasil Translate']].head(5))
 
                 # --- GENERASI FILE DENGAN WARNA & NAMA DINAMIS ---
-                # Logika Penamaan File: Nama_Asli (Kode_Bahasa).xlsx
                 nama_file_murni = uploaded_file.name.rsplit('.', 1)[0]
                 nama_file_baru = f"{nama_file_murni} ({target_lang}).xlsx"
 
